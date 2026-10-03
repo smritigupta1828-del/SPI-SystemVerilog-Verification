@@ -25,6 +25,7 @@ vlog spi_project.sv
 vsim tb -do "run -all; quit"
 ```
 ## Sample Output log
+```bash
 [DRV]: Reset done
 [GEN]: din: 2451
 [SCO] Data rcvd from MON: 2451, DRV: 2451
@@ -32,3 +33,4 @@ vsim tb -do "run -all; quit"
 [GEN]: din: 3892
 [SCO] Data rcvd from MON: 3892, DRV: 3892
 [SCO]: Data matched
+```
