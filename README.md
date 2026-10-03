@@ -23,8 +23,8 @@ Steps to compile and run using a standard simulator command line:
 ```bash
 vlog spi_project.sv
 vsim tb -do "run -all; quit"
-
-## **## Sample Output log**
+```
+## Sample Output log
 [DRV]: Reset done
 [GEN]: din: 2451
 [SCO] Data rcvd from MON: 2451, DRV: 2451
