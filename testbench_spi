@@ -1,0 +1,231 @@
+class transaction; 
+  
+  bit newd;
+ rand bit[11:0] din;
+  bit[11:0] dout;
+  
+  function transaction copy();
+    copy= new();
+    copy.newd= this.newd;
+    copy.din= this.din;
+    copy.dout= this.dout;
+    
+  endfunction
+  
+endclass
+
+class generator;
+  
+  transaction tr;
+  mailbox #(transaction) mbx;
+  event sconext;
+  event done;
+  int count =0;
+  
+  function new(mailbox #(transaction) mbx);
+    this.mbx=mbx;
+    tr= new();
+  endfunction
+  
+  task run();
+    repeat(count) begin
+      assert(tr.randomize) else $error("[GEN]:Randomization failed");
+      $display("[GEN]: din: %0d", tr.din);
+      mbx.put(tr);
+      @(sconext);
+    end
+    -> done;
+  endtask
+  
+endclass
+
+class driver;
+  
+  virtual spi_if vif;
+  transaction tr;
+  mailbox #(transaction) mbx;
+  mailbox #(bit[11:0]) mbxds;
+  
+  function new(mailbox #(transaction) mbx, mailbox#[11:0] mbxds);
+    this.mbx= mbx;
+    this.mbxds= mbxds;
+  endfunction
+  
+  task reset();
+    vif.rst <=1'b1;
+    vif.newd <= 1'b0;
+    vif.din <=1'b0;
+    repeat(10) @(posedge vif.clk);
+      vif.rst<= 1'b0;
+    repeat(5) @(posedge vif.clk);
+      
+    $displY("[DRV]: Reset done");  
+    
+  endtask
+  
+  task run();
+    
+    forever begin
+      mbx.get(tr);
+      
+      vif.newd <= 1'b1;
+      vif.din <= tr.din;
+      mbxds.put(tr.din);
+      @(posedge vif.sclk)
+      vif.newd<= 1'b0;
+      @(posedge vif.done); ///////////////////////// WHYYYYYY
+      $display("[DRV] : data sent: %0d", tr.din);
+    end 
+    
+  endtask
+  
+endclass
+
+class monitor;
+  
+  transaction tr;
+  mailbox #(bit[11:0]) mbx;
+  virtual spi_if vif;
+  
+  function new(bit[11:0]) mbx;
+    this.mbx=mbx;
+  endfunction
+  
+  task run();
+    tr = new();
+    forever begin
+      @(posedge vif.sclk);
+      @(posedge vif.done);
+      tr.dout <= vif.dout;
+      @(posedge vif.sclk);
+      $display("[MON]: data received: %0d",tr.dout);
+      
+      mbx.put(tr.dout);
+      
+    end
+  endtask
+  
+endclass
+
+class scoreboard;
+  
+  transaction tr;
+  mailbox #(bit[11:0]) mbx;
+  mailbox #(bit[11:0]) mbxds;
+  bit[11:0] ms;
+  bit[11:0] ds;
+  event sconext;
+  
+  function new(mailbox #(bit[11:0]) mbx, mailbox #(bit[11:0]) mbxds);
+    
+    this.mbx = mbx;
+    this.mbxds= mbxds;    
+    
+  endfunction
+  
+  task run();
+    forever begin
+      mbx.get(ms);
+      mbxds.get(ds);
+      
+      $display("[SCO] Data rcvd from MON: %0d, DRV: %0d",ms,ds);
+      
+      if(ms==ds) begin 
+        $display("[SCO]: Data matched");
+      end
+      else
+        $display("[SCO]: Data mismatched");
+      
+      ->sconext;
+    end
+  endtask
+  
+endclass
+
+class environment;
+    generator gen;
+    driver drv;
+    monitor mon;
+    scoreboard sco;
+    
+    event nextgd;
+    event nextgs;
+  
+    mailbox #(transaction) mbxgd;
+    mailbox #(bit [11:0]) mbxds;
+    mailbox #(bit [11:0]) mbxms;
+  
+    virtual spi_if vif;
+  
+  function new(virtual spi_if vif);
+       
+    mbxgd = new();
+    mbxms = new();
+    mbxds = new();
+    gen = new(mbxgd);
+    drv = new(mbxds,mbxgd);
+    mon = new(mbxms);
+    sco = new(mbxds, mbxms);
+    
+    this.vif = vif;
+    drv.vif = this.vif;
+    mon.vif = this.vif;
+    
+    gen.sconext = nextgs;
+    sco.sconext = nextgs;
+    
+    gen.drvnext = nextgd;
+    drv.drvnext = nextgd;
+  endfunction
+  
+  task pre_test();
+    drv.reset();
+  endtask
+  
+  task test();
+  fork
+    gen.run();
+    drv.run();
+    mon.run();
+    sco.run();
+  join_any
+  endtask
+  
+  task post_test();
+    wait(gen.done.triggered);
+    $finish();
+  endtask
+  
+  task run();
+    pre_test();
+    test();
+    post_test();
+  endtask
+endclass
+
+module tb;
+  spi_if vif();
+  
+  top dut(vif.clk,vif.rst,vif.newd,vif.din,vif.dout,vif.done);
+  
+  initial begin
+    vif.clk <= 0;
+  end
+    
+  always #10 vif.clk <= ~vif.clk;
+  
+  environment env;
+  
+  assign vif.sclk = dut.m1.sclk;
+  
+  initial begin
+    env = new(vif);
+    env.gen.count = 4;
+    env.run();
+  end
+      
+  initial begin
+    $dumpfile("dump.vcd");
+    $dumpvars;
+  end
+endmodule
