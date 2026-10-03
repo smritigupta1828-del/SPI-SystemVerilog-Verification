@@ -4,7 +4,8 @@ input clk, rst, newd,
   output cs,mosi,sclk
 );
   
-  typedef enum bit[1:0]{idle= 2'b00, enable= 2'b01, send= 2'b10, comp=2'b11};
+  typedef enum bit[1:0]{idle= 2'b00, enable= 2'b01, send= 2'b10, comp=2'b11} state_type;
+  state_type state = idle;
   
   int countc=0;
   int count =0;
@@ -38,8 +39,8 @@ input clk, rst, newd,
   always@(posedge sclk) begin
     
     if(rst <=1'b1) begin 
-    cs=1'b1;
-      mosi= 1'b0;
+    cs <= 1'b1;
+      mosi <= 1'b0;
     end
     
     else begin 
@@ -82,13 +83,13 @@ input cs,mosi, sclk,
   output [11:0] dout
 );
   
-  type def enum bit{detect_start= 1'b0, read_data = 1'b1} state_type;
+  typedef enum bit{detect_start= 1'b0, read_data = 1'b1} state_type;
   state_type state= detect_start;
   
   int count =0;
   reg [11:0] temp = 12'h000;
   
-  always@(posedge sclk) begin 
+  always @(posedge sclk) begin 
     case(state)
       detect_start: begin 
       done <= 1'b0;
@@ -109,11 +110,12 @@ input cs,mosi, sclk,
           done<=1'b1;
           state<= detect_start;
         end
+        
       end
     endcase
   end
   
-  assign dout <= temp;
+  assign dout = temp;
 endmodule
 
 module top(
@@ -125,7 +127,7 @@ module top(
 );
   wire cs,mosi, sclk;
   
-  spi_master(clk, rst, newd, din,cs, mosi,sclk);
-  spi_slave(cs,mosi,sclk,done, dout);
+  spi_master m1(clk, rst, newd, din,cs, mosi,sclk);
+  spi_slave m2(cs,mosi,sclk,done, dout);
   
 endmodule
