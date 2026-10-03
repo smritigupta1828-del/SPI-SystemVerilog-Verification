@@ -19,6 +19,7 @@ class generator;
   transaction tr;
   mailbox #(transaction) mbx;
   event sconext;
+  event drvnext;
   event done;
   int count =0;
   
@@ -45,8 +46,9 @@ class driver;
   transaction tr;
   mailbox #(transaction) mbx;
   mailbox #(bit[11:0]) mbxds;
+  event drvnext;
   
-  function new(mailbox #(transaction) mbx, mailbox#[11:0] mbxds);
+  function new(mailbox #(transaction) mbx, mailbox #(bit[11:0]) mbxds);
     this.mbx= mbx;
     this.mbxds= mbxds;
   endfunction
@@ -59,7 +61,7 @@ class driver;
       vif.rst<= 1'b0;
     repeat(5) @(posedge vif.clk);
       
-    $displY("[DRV]: Reset done");  
+    $display("[DRV]: Reset done");  
     
   endtask
   
@@ -73,7 +75,7 @@ class driver;
       mbxds.put(tr.din);
       @(posedge vif.sclk)
       vif.newd<= 1'b0;
-      @(posedge vif.done); ///////////////////////// WHYYYYYY
+      @(posedge vif.done); 
       $display("[DRV] : data sent: %0d", tr.din);
     end 
     
@@ -87,7 +89,7 @@ class monitor;
   mailbox #(bit[11:0]) mbx;
   virtual spi_if vif;
   
-  function new(bit[11:0]) mbx;
+  function new(mailbox #(bit[11:0]) mbx);
     this.mbx=mbx;
   endfunction
   
@@ -163,7 +165,7 @@ class environment;
     mbxms = new();
     mbxds = new();
     gen = new(mbxgd);
-    drv = new(mbxds,mbxgd);
+    drv = new(mbxgd,mbxds);
     mon = new(mbxms);
     sco = new(mbxds, mbxms);
     
@@ -229,3 +231,4 @@ module tb;
     $dumpvars;
   end
 endmodule
+
