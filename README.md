@@ -1,30 +1,25 @@
-SPI Protocol Verification using SystemVerilog
-This repository contains a SystemVerilog verification environment designed to test an SPI (Serial Peripheral Interface) Master-Slave Core. The testbench uses a modular, Object-Oriented Programming (OOP) architecture where components communicate using Mailboxes and Events.
+# SPI Protocol Verification Environment
 
-Project Structure
-• SPI Master (Design): Converts 12-bit parallel input data into serial data on the MOSI line when the new data flag is high. It generates the serial clock using a frequency divider.
-• SPI Slave (Design): Monitors the chip select line, reads serial data from the MOSI line, shifts it into a 12-bit register, and asserts a done flag when the transmission finishes.
-• Transaction (Testbench): The basic data object that holds the randomizable 12-bit data and status variables.
-• Generator (Testbench): Randomizes data packets and sends them to the driver while waiting for handshake signals.
-• Driver (Testbench): Receives transactions from the generator, controls the virtual interface lines, and handles the reset sequence.
-• Monitor (Testbench): Samples the output data and status signals directly from the interface pins.
-• Scoreboard (Testbench): Compares the original data sent by the driver with the output data captured by the monitor to check for mismatches.
-• Environment (Testbench): Instantiates all components, connects the mailboxes, and runs the simulation phases.
+This repository contains a modular, object-oriented testbench built in SystemVerilog to verify a standard SPI Master-Slave design[cite: 1]. The testbench is organized using layered architecture principles to separate stimulus generation, pin-level driving, signal monitoring, and data checking[cite: 1].
 
-How to Run
-You can simulate this project using platforms like EDA Playground or command-line simulators like QuestaSim or VCS.
-Steps to compile and run using a standard simulator command line:
-bash
+## Testbench Architecture
+
+The verification environment is broken down into separate class components that communicate using mailboxes and events[cite: 1]:
+
+* **SPI Master (Design):** Converts 12-bit parallel input data into serial data on the MOSI line when the new data flag is high[cite: 1]. It generates the serial clock using an internal frequency divider[cite: 1].
+* **SPI Slave (Design):** Monitors the chip select line, reads serial data from the MOSI line, shifts it into a 12-bit register, and asserts a done flag when the transmission finishes[cite: 1].
+* **Transaction:** Defines the data fields for the SPI protocol, including the random input data (`din`) and the captured output data (`dout`)[cite: 1]. It includes a copy function to duplicate objects safely[cite: 1].
+* **Generator:** Generates transaction objects, randomizes the input stimuli, and sends them to the driver[cite: 1]. It uses a handshake event to wait until the scoreboard finishes checking the current transaction before generating the next one[cite: 1].
+* **Driver:** Receives transactions from the generator through a mailbox[cite: 1]. It handles the physical interface by running a reset sequence and then driving data onto the interface pins[cite: 1].
+* **Monitor:** Observes the output pins of the SPI design through the virtual interface, captures the output state, and sends it to the scoreboard for evaluation[cite: 1].
+* **Scoreboard:** Collects the captured transactions from the monitor and the reference transactions from the driver[cite: 1]. It compares the two datasets to verify matching behavior and outputs error messages in case of mismatches[cite: 1].
+
+## How to Run
+
+You can simulate this project using platforms like EDA Playground or command-line simulators like QuestaSim or VCS[cite: 1].
+
+Steps to compile and run using a standard simulator command line[cite: 1]:
+
+```bash
 vlog spi_project.sv
 vsim tb -do "run -all; quit"
-Use code with caution.
-
-Sample Output Log
-text
-[DRV]: Reset done
-[GEN]: din: 2451
-[SCO] Data rcvd from MON: 2451, DRV: 2451
-[SCO]: Data matched
-[GEN]: din: 3892
-[SCO] Data rcvd from MON: 3892, DRV: 3892
-[SCO]: Data matched
